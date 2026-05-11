@@ -1,6 +1,6 @@
-# Triathlon Local RAG
+# tri-coach
 
-本项目是一套本地铁三知识库和课表生成原型，目标是把已认可的训练知识、骑行/跑步/游泳计划规则、补给模板和教练计划逻辑，整理成可检索、可验证、可逐步扩展的本地 RAG 系统。
+`tri-coach` 是一套本地铁三知识库和课表生成原型。它把已认可的训练知识、骑行/跑步/游泳计划规则、补给模板和教练计划逻辑，整理成可检索、可验证、可逐步扩展的本地 RAG 系统。
 
 ## What Is Tracked
 
@@ -37,11 +37,16 @@ python3 coach_plan_basa226_logic_check.py --write-output --write-review
 
 OCR 和格式转换依赖外部工具时，按本机实际情况安装 `pandoc`、`ebook-convert` 或 MinerU 环境；这些工具不随仓库提交。
 
-## GitHub Push
+## Current Scope
 
-本地初始化和提交后，添加自己的 GitHub 远端再推送：
+- 第一层 approved 知识库和第二层 reference 知识库已经完成本地入库流程。
+- 本地向量库、切块产物和 latest 评估报告只留在本机，不进入 GitHub。
+- 已有骑行计划生成、日程预检、长骑补给复核、三项总课表协调和巴萨 226 逻辑校验。
+- 当前仓库保存可复用代码和轻量治理说明；真实训练处方仍需要结合用户当周时间、疲劳、睡眠和人工复核。
+
+## Repository
 
 ```bash
-git remote add origin git@github.com:<owner>/<repo>.git
-git push -u origin main
+origin: https://github.com/SweetGingerGreen/tri-coach.git
+branch: main
 ```
