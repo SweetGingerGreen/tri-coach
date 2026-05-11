@@ -1,0 +1,58 @@
+{
+  "schema_version": "coach_plan_basa226_logic_profile_v0.1",
+  "source_path": "triathlon-knowledge/00_inbox/巴萨226备战计划.numbers",
+  "source_extract": "triathlon-knowledge/metadata/coach_plan_basa226_extract_latest.json",
+  "use_boundary": "logic_case_not_gold_standard",
+  "allowed_use": [
+    "understand_coach_design_logic",
+    "compare_schedule_shape",
+    "support_plan_profile_design"
+  ],
+  "disallowed_use": [
+    "exact_day_by_day_gold_standard",
+    "canonical_training_fact",
+    "override_user_availability_or_daily_preflight"
+  ],
+  "global_logic": {
+    "user_availability_priority": true,
+    "validate_shape_not_exact_match": true,
+    "stable_weekly_anchors": {
+      "recovery_or_optional_day": "Friday",
+      "run_anchor_day": "Wednesday",
+      "long_bike_or_brick_preferred_day": "Saturday",
+      "post_long_bike_run_or_recovery_candidate_day": "Sunday"
+    },
+    "design_checks": [
+      "weekly_bike_run_swim_coverage",
+      "protected_recovery_or_optional_day",
+      "weekend_long_bike_or_brick_anchor",
+      "brick_specificity_increases_near_race",
+      "race_week_taper_or_site_adaptation",
+      "shared_high_intensity_budget_respected"
+    ]
+  },
+  "plan_profiles": {
+    "finish": {
+      "goal": "stable_finish",
+      "intensity_bias": "conservative",
+      "brick_bias": "gradual",
+      "recovery_bias": "strong",
+      "validation_tolerance": {
+        "missing_brick_early_weeks": "acceptable",
+        "high_intensity_density": "should_be_low",
+        "long_anchor_shift_due_to_user_availability": "acceptable_with_note"
+      }
+    },
+    "advanced": {
+      "goal": "higher_quality_finish",
+      "intensity_bias": "moderate_to_high_with_guardrails",
+      "brick_bias": "specificity_increases_earlier",
+      "recovery_bias": "protected_but_less_conservative",
+      "validation_tolerance": {
+        "missing_brick_mid_late_weeks": "needs_attention",
+        "high_intensity_density": "allowed_if_budget_and_preflight_pass",
+        "long_anchor_shift_due_to_user_availability": "acceptable_with_note"
+      }
+    }
+  }
+}

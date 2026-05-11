@@ -1,0 +1,51 @@
+# macOS and Python cache
+.DS_Store
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# local environments
+venv/
+venv_mineru/
+.venv/
+knowledge-env/
+.env
+.env.*
+!.env.example
+
+# local tools and process output
+.local_tools/
+.bench/
+output/
+
+# raw/private/copyrighted knowledge assets
+triathlon-knowledge/00_inbox/
+triathlon-knowledge/01_approved/
+triathlon-knowledge/02_reference/
+triathlon-knowledge/03_conflicting/
+triathlon-knowledge/04_deprecated/
+
+# generated RAG and planning artifacts
+triathlon-knowledge/metadata/chunks/
+triathlon-knowledge/metadata/vectors/
+triathlon-knowledge/metadata/*_latest.json
+triathlon-knowledge/metadata/*_latest.md
+triathlon-knowledge/metadata/*_latest.csv
+triathlon-knowledge/metadata/*_simulated*
+triathlon-knowledge/metadata/*_eval_*
+triathlon-knowledge/metadata/*eval*
+triathlon-knowledge/metadata/coach_plan_basa226_extract_latest.json
+triathlon-knowledge/metadata/triathlon_plan_orchestrator_eval_*.json
+triathlon-knowledge/metadata/bike_plan_*_input*.json
+triathlon-knowledge/metadata/bike_plan_*_plan.json
+
+# keep lightweight governance/config notes
+!triathlon-knowledge/metadata/
+!triathlon-knowledge/metadata/00_brain_boundaries.md
+!triathlon-knowledge/metadata/document_template.md
+!triathlon-knowledge/metadata/eval_questions.md
+!triathlon-knowledge/metadata/coach_plan_basa226_logic_profile.json
+!triathlon-knowledge/90_notes/
+!triathlon-knowledge/90_notes/*.md
