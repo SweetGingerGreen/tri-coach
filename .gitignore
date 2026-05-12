@@ -19,6 +19,9 @@ knowledge-env/
 .local_tools/
 .bench/
 output/
+packages/
+dist/
+releases/
 
 # raw/private/copyrighted knowledge assets
 triathlon-knowledge/00_inbox/
