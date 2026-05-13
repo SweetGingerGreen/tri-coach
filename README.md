@@ -1,28 +1,69 @@
 # tri-coach
 
-`tri-coach` 是一套本地铁三知识库和课表生成原型。它把已认可的训练知识、骑行/跑步/游泳计划规则、补给模板和教练计划逻辑，整理成可检索、可验证、可逐步扩展的本地 RAG 系统。
+A local, self-hosted RAG system for triathlon training: it turns curated training
+knowledge, bike/run/swim planning rules, fueling templates, and historical coach-plan
+logic into a retrievable, verifiable, and incrementally extensible local pipeline.
 
-## What Is Tracked
+[简体中文版本见下方](#中文版本)
 
-- `chunk_approved.py`, `vector_store.py`, `rag_answer.py`: 本地知识库切块、向量存储和问答入口。
-- `bike_plan_*.py`: 骑行课表、日程预检、长骑补给复核等生成/复核模块。
-- `triathlon_plan_orchestrator.py`: 三项总课表协调器，保留骑行计划主体，并协调跑步、游泳、brick 和强度预算。
-- `coach_plan_basa226_logic_check.py`: 用巴萨 226 备战计划提取出的设计逻辑做一致性校验。
-- `eval_*.py`: 针对 RAG、骑行计划、三项协调器的本地评估脚本。
-- `triathlon-knowledge/metadata/*.md|json`: 只跟踪轻量治理说明和逻辑 profile。
-- `triathlon-knowledge/90_notes/*.md`: 阶段性入库、计划和使用说明。
+---
 
-## What Stays Local
+> ## ⚠️ Safety Disclaimer
+>
+> `tri-coach` is an engineering tool, not a medical or training authority.
+>
+> - Outputs are **not** medical advice and **not** an individualized prescription.
+> - If you have structural pain, joint instability, or any symptom that could
+>   indicate injury or illness, see a qualified clinician — do not let any
+>   automated tool override that.
+> - Any training plan generated, reviewed, or critiqued by this code still
+>   requires a human in the loop (you, or your coach) before it is acted on.
+> - The repository ships with safety rails for medical-shaped questions
+>   (see `triathlon-knowledge/metadata/00_brain_boundaries.md`); please leave
+>   them in place if you fork.
 
-以下内容默认不进入 Git：
+---
 
-- `triathlon-knowledge/00_inbox/`: 原始 inbox 文件、PDF、表格、OCR 输入。
-- `triathlon-knowledge/01_approved/` 和 `02_reference/`: 已批准/参考知识正文。
-- `triathlon-knowledge/metadata/chunks/` 和 `vectors/`: 切块文件与本地向量库。
-- `triathlon-knowledge/metadata/*_latest.*`: 评估和生成过程报告。
-- `.env*`, `venv/`, `venv_mineru/`, `.local_tools/`, `output/`: 本机环境、密钥、工具和临时产物。
+## What's in the Repo
 
-这样 GitHub 仓库保存工程方法和可复用代码，个人资料、版权材料和本地向量库继续只留在本机。
+Code (MIT licensed):
+
+- `chunk_approved.py`, `vector_store.py`, `rag_answer.py` — local chunking, vector
+  store, and answer/generation entry point.
+- `bike_plan_*.py` — cycling plan generation, daily preflight, long-ride
+  fueling review, etc.
+- `triathlon_plan_orchestrator.py` — triathlon-level orchestrator that keeps the
+  cycling plan as the spine and coordinates run, swim, brick, and intensity
+  budget.
+- `ironman_plan_logic_check.py` — consistency check against a historical
+  Ironman 226 coach-plan logic profile (logic only, not gold standard).
+- `eval_*.py` — local evals for the RAG layer, bike plan modules, and the
+  triathlon orchestrator.
+
+Tracked governance / notes:
+
+- `triathlon-knowledge/metadata/*.md|json` — lightweight governance notes
+  and logic profiles.
+- `triathlon-knowledge/90_notes/*.md` — staged ingest and usage notes.
+
+## What Stays Local (and Why)
+
+The following are intentionally **not** committed. They contain raw third-party
+material (books, paid courses, historical coach plans) whose redistribution
+rights this project does not hold:
+
+- `triathlon-knowledge/00_inbox/` — raw inbox files, PDFs, sheets, OCR input.
+- `triathlon-knowledge/01_approved/` and `02_reference/` — approved and
+  reference knowledge bodies.
+- `triathlon-knowledge/metadata/chunks/` and `vectors/` — chunked files and the
+  local vector store.
+- `triathlon-knowledge/metadata/*_latest.*` — eval and generation reports.
+- `.env*`, `venv/`, `venv_mineru/`, `.local_tools/`, `output/` — local
+  environments, secrets, tools, and transient outputs.
+
+The repository preserves the engineering methodology and reusable code; the
+private corpus, the personal training data, and the local vector index remain
+on the maintainer's machine.
 
 ## Quick Start
 
@@ -30,24 +71,136 @@
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env  # then edit if you're not on default local Ollama
 python3 -m py_compile *.py
-python3 eval_triathlon_plan_orchestrator.py
-python3 coach_plan_basa226_logic_check.py --write-output --write-review
 ```
 
-OCR 和格式转换依赖外部工具时，按本机实际情况安装 `pandoc`、`ebook-convert` 或 MinerU 环境；这些工具不随仓库提交。
-
-## Current Scope
-
-- 第一层 approved 知识库和第二层 reference 知识库已经完成本地入库流程。
-- 本地向量库、切块产物和 latest 评估报告只留在本机，不进入 GitHub。
-- 已有骑行计划生成、日程预检、长骑补给复核、三项总课表协调和巴萨 226 逻辑校验。
-- 当前仓库保存可复用代码和轻量治理说明；真实训练处方仍需要结合用户当周时间、疲劳、睡眠和人工复核。
-- 协作者验证所需的私有知识库数据通过单独 release asset 分发，恢复方式见 `docs/KNOWLEDGE_PACKAGE.md`。
-
-## Repository
+To exercise the full ingest → embed → retrieve loop without any private data,
+run the public demo:
 
 ```bash
-origin: https://github.com/SweetGingerGreen/tri-coach.git
-branch: main
+ollama pull bge-m3
+python3 examples/seed_demo.py
 ```
+
+See [`examples/README.md`](examples/README.md) for details.
+
+For generation (answer synthesis) you'll also want a chat model — locally that's
+typically `ollama pull gemma2`, or you can point at any OpenAI-compatible
+endpoint by setting `TRI_RAG_PROVIDER=openai-compatible` and the related env
+vars in `.env`.
+
+External tools like `pandoc`, `ebook-convert`, or MinerU are only needed if you
+ingest non-Markdown sources, and are not bundled.
+
+## Private Knowledge Package
+
+For collaborators who already have rights to the underlying training content,
+a private tarball can be provisioned out-of-band that restores:
+
+```text
+triathlon-knowledge/01_approved/
+triathlon-knowledge/02_reference/
+triathlon-knowledge/metadata/chunks/
+triathlon-knowledge/metadata/vectors/
+```
+
+**It is not published as a release asset, and it is not freely shareable.**
+
+To request access: open an issue on this repo with the label `knowledge-access`
+and describe your role and the rights you already hold to the source material.
+Procedure and restore instructions live in [`docs/KNOWLEDGE_PACKAGE.md`](docs/KNOWLEDGE_PACKAGE.md).
+
+## License
+
+Source code: [MIT](LICENSE).
+
+The MIT license does **not** extend to any third-party training material that
+may be referenced by, or restored into, this pipeline. Those works remain the
+property of their respective owners.
+
+---
+
+<a id="中文版本"></a>
+
+# 中文版本
+
+`tri-coach` 是一套本地铁三知识库和课表生成原型。它把已认可的训练知识、骑行/跑步/游泳计划规则、补给模板和教练计划逻辑，整理成可检索、可验证、可逐步扩展的本地 RAG 系统。
+
+## ⚠️ 安全声明
+
+- `tri-coach` 是工程工具，**不是医疗建议，也不是个性化训练处方**。
+- 任何涉及结构性疼痛、关节失稳或潜在伤病的表现，请去找合格的临床医师，不要让任何自动化工具替代它。
+- 课表生成、复核或评估的产出，都必须在人工（你自己或你的教练）复核后才能采用。
+- 仓库内置医疗类问题的拒答边界（见 [`triathlon-knowledge/metadata/00_brain_boundaries.md`](triathlon-knowledge/metadata/00_brain_boundaries.md)），fork 时请保留。
+
+## 仓库内容
+
+代码（MIT 协议）：
+
+- `chunk_approved.py` / `vector_store.py` / `rag_answer.py`：本地切块、向量存储和问答入口。
+- `bike_plan_*.py`：骑行课表、日程预检、长骑补给复核等生成/复核模块。
+- `triathlon_plan_orchestrator.py`：三项总课表协调器，保留骑行计划主体，并协调跑步、游泳、brick 和强度预算。
+- `ironman_plan_logic_check.py`：用一份历史 Ironman 226 教练计划提取出的设计逻辑做一致性校验（逻辑校验，不是黄金标准）。
+- `eval_*.py`：针对 RAG、骑行计划、三项协调器的本地评估脚本。
+
+跟踪的治理 / 笔记：
+
+- `triathlon-knowledge/metadata/*.md|json`：轻量治理说明和逻辑 profile。
+- `triathlon-knowledge/90_notes/*.md`：阶段性入库和使用说明。
+
+## 默认不进入 Git 的内容
+
+以下内容默认 **不进入** 公开仓库。它们涉及第三方版权材料（书籍、付费课程、历史教练方案）等本仓库不持有再分发权利的资料：
+
+- `triathlon-knowledge/00_inbox/`：原始 inbox 文件、PDF、表格、OCR 输入。
+- `triathlon-knowledge/01_approved/` 和 `02_reference/`：已批准 / 参考知识正文。
+- `triathlon-knowledge/metadata/chunks/` 和 `vectors/`：切块文件与本地向量库。
+- `triathlon-knowledge/metadata/*_latest.*`：评估和生成过程报告。
+- `.env*`、`venv/`、`venv_mineru/`、`.local_tools/`、`output/`：本机环境、密钥、工具和临时产物。
+
+公开仓库只保留工程方法和可复用代码；个人训练数据、版权材料和本地向量库继续留在本机。
+
+## 快速开始
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env  # 不用默认本地 Ollama 的话，按需修改
+python3 -m py_compile *.py
+```
+
+想在不接触私有数据的情况下，跑一次完整的 入库 → 向量化 → 检索 流程，可以运行公开 demo：
+
+```bash
+ollama pull bge-m3
+python3 examples/seed_demo.py
+```
+
+详见 [`examples/README.md`](examples/README.md)。
+
+生成回答还需要一个 chat 模型。本地常用 `ollama pull gemma2`；如果想接 OpenAI 兼容端点，在 `.env` 里把 `TRI_RAG_PROVIDER` 设为 `openai-compatible` 并配好相关变量即可。
+
+`pandoc` / `ebook-convert` / MinerU 等外部工具只在处理非 Markdown 源时需要，仓库不打包它们。
+
+## 私有知识包
+
+如果协作者已经持有相关训练内容的使用权，我可以单独分发一份私有 tarball，恢复以下目录：
+
+```text
+triathlon-knowledge/01_approved/
+triathlon-knowledge/02_reference/
+triathlon-knowledge/metadata/chunks/
+triathlon-knowledge/metadata/vectors/
+```
+
+**这份私有包不会作为 Release Asset 发布，也不会公开分享。**
+
+申请方式：在本仓库开一个 issue 并打 `knowledge-access` 标签，说明你的角色，以及你对底层资料已经持有的使用权。恢复步骤见 [`docs/KNOWLEDGE_PACKAGE.md`](docs/KNOWLEDGE_PACKAGE.md)。
+
+## 许可证
+
+源代码：[MIT](LICENSE)。
+
+MIT 协议 **不覆盖** 本流水线引用或还原的任何第三方训练材料，那些内容的著作权仍归原作者所有。
