@@ -58,8 +58,8 @@ rights this project does not hold:
 - `triathlon-knowledge/metadata/chunks/` and `vectors/` — chunked files and the
   local vector store.
 - `triathlon-knowledge/metadata/*_latest.*` — eval and generation reports.
-- `.env*`, `venv/`, `venv_mineru/`, `.local_tools/`, `output/` — local
-  environments, secrets, tools, and transient outputs.
+- `.env*`, `.venv/`, `.local_tools/`, `output/` — local environments,
+  secrets, tools, and transient outputs.
 
 The repository preserves the engineering methodology and reusable code; the
 private corpus, the personal training data, and the local vector index remain
@@ -157,7 +157,7 @@ property of their respective owners.
 - `triathlon-knowledge/01_approved/` 和 `02_reference/`：已批准 / 参考知识正文。
 - `triathlon-knowledge/metadata/chunks/` 和 `vectors/`：切块文件与本地向量库。
 - `triathlon-knowledge/metadata/*_latest.*`：评估和生成过程报告。
-- `.env*`、`venv/`、`venv_mineru/`、`.local_tools/`、`output/`：本机环境、密钥、工具和临时产物。
+- `.env*`、`.venv/`、`.local_tools/`、`output/`：本机环境、密钥、工具和临时产物。
 
 公开仓库只保留工程方法和可复用代码；个人训练数据、版权材料和本地向量库继续留在本机。
 

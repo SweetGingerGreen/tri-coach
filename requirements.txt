@@ -3,6 +3,11 @@
 numpy>=1.26
 openpyxl>=3.1
 
-# Optional: only needed by ingest_knowledge_v2.py for PDF parsing.
-# Comment out if you don't ingest PDFs.
+# Optional: PDF ingestion via opendataloader-pdf (used by ingest_knowledge.py).
+# Comment out if you don't ingest PDFs through that script.
 opendataloader-pdf>=0.1
+
+# Optional: fast-path PDF text extraction used by ingest_knowledge_v2.py.
+# The v2 script also shells out to system tools (mineru, pandoc, calibre)
+# for non-PDF formats — see that script's module docstring for install steps.
+pypdf>=4.0
