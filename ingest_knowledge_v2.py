@@ -367,16 +367,23 @@ def infer_language(text: str) -> str:
     return "zh" if zh_chars >= 80 else "en"
 
 
+# Trailing source-tag suffixes that some ebook tools/sites append to filenames
+# (e.g. " (Some-Library)"). Configure via env if you want to strip a specific
+# marker; otherwise the generic regex below removes any short
+# capital-led parenthesized tag at the end of the stem.
+_SOURCE_TAG_RE = re.compile(r"\s*\(\s*[A-Z][A-Za-z0-9-]{2,}\s*\)\s*$")
+
+
 def title_from_filename(src: Path) -> str:
-    title = re.sub(r"\s*\(third-party download tag\)\s*", "", src.stem, flags=re.I)
+    title = _SOURCE_TAG_RE.sub("", src.stem)
     title = re.sub(r"\s+", " ", title).strip()
     return title or src.stem
 
 
 def author_from_filename(src: Path) -> str:
-    title = src.stem.replace("", "")
+    title = _SOURCE_TAG_RE.sub("", src.stem)
     matches = re.findall(r"\(([^()]+)\)", title)
-    candidates = [m.strip() for m in matches if m.strip() and "third-party download tag" not in m.lower()]
+    candidates = [m.strip() for m in matches if m.strip()]
     return candidates[-1] if candidates else "unknown"
 
 

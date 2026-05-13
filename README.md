@@ -93,6 +93,25 @@ vars in `.env`.
 External tools like `pandoc`, `ebook-convert`, or MinerU are only needed if you
 ingest non-Markdown sources, and are not bundled.
 
+## Knowledge Sources
+
+The private corpus is organized by training domain. Each domain holds a small,
+curated set of textbooks, coaching guides, and reference works that the
+maintainer already has rights to consult, used here as background material for
+the RAG layer. Specific titles, authors, and source files are intentionally not
+enumerated in this public repo — the categorical scope is:
+
+- **race** — triathlon-level training science, periodization, race preparation.
+- **run** — running physiology, training-load design, marathon and injury-prevention literature.
+- **swim** — swim coaching frameworks, technical drills, sport-specific conditioning.
+- **strength** — endurance-oriented strength training, concurrent training, periodization.
+- **nutrition** — sports nutrition, hydration, dietary guidelines.
+- **recovery** — anatomy references, soft-tissue and injury-prevention material.
+
+None of those source materials are distributed by this project. The repository
+ships only the engineering pipeline, the governance notes, and a small original
+sample corpus under [`examples/`](examples/).
+
 ## Private Knowledge Package
 
 For collaborators who already have rights to the underlying training content,
@@ -183,6 +202,19 @@ python3 examples/seed_demo.py
 生成回答还需要一个 chat 模型。本地常用 `ollama pull gemma2`；如果想接 OpenAI 兼容端点，在 `.env` 里把 `TRI_RAG_PROVIDER` 设为 `openai-compatible` 并配好相关变量即可。
 
 `pandoc` / `ebook-convert` / MinerU 等外部工具只在处理非 Markdown 源时需要，仓库不打包它们。
+
+## 训练资料范围
+
+私有语料按训练领域组织。每个领域只放维护者本人有权查阅的少量教练手册、运动科学教材和参考书，用作 RAG 层的背景资料。**具体书名、作者、文件名在本公开仓库中刻意不列出**，仅以类目说明覆盖范围：
+
+- **race（铁三整体）**：铁三训练科学、周期化、比赛准备。
+- **run（跑步）**：跑步生理、训练负荷设计、马拉松训练法、跑步损伤预防。
+- **swim（游泳）**：游泳教练学框架、技术 drill、专项体能。
+- **strength（力量）**：耐力导向力量训练、同期训练、周期化。
+- **nutrition（运动营养）**：运动营养、补液补给、膳食指南。
+- **recovery（恢复 / 解剖）**：解剖图谱、软组织和损伤预防资料。
+
+本项目不分发上述任何源材料。仓库只包含工程流水线、治理笔记，以及 [`examples/`](examples/) 下一份小型原创演示语料。
 
 ## 私有知识包
 
