@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Medical / health-related questions
+    url: https://www.who.int/health-topics
+    about: This project is not a medical authority. For anything injury- or health-related, consult a qualified clinician — do not open an issue here for medical advice.

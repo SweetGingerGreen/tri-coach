@@ -1,0 +1,39 @@
+name: Feature request
+description: Suggest an enhancement, new pipeline stage, or new training-domain module.
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Concrete user-facing scenario, not just an abstract improvement.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed approach
+      description: Optional. What you'd suggest as a starting point.
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+    validations:
+      required: false
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Which area does this touch?
+      options:
+        - label: Ingest / chunking
+        - label: Vector store / retrieval
+        - label: Answer generation
+        - label: Plan generation (bike / run / swim / brick / orchestrator)
+        - label: Evals
+        - label: Safety rails / governance
+        - label: Other
+    validations:
+      required: false

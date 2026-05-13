@@ -1,0 +1,62 @@
+name: Knowledge package access request
+description: Request out-of-band access to the private triathlon knowledge package.
+title: "[knowledge-access] "
+labels: ["knowledge-access"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The private knowledge package is **not** distributed as a public release
+        asset. It is shared out-of-band, on request, only with collaborators who
+        already hold rights to the underlying training material. Please fill out
+        the questions below so the maintainer can follow up appropriately.
+
+        **Do not paste package contents, filenames, or hashes into this issue.**
+  - type: input
+    id: role
+    attributes:
+      label: Collaborator role
+      description: Which role are you acting in?
+      placeholder: e.g. training partner / reviewer / fellow coach / research peer
+    validations:
+      required: true
+  - type: checkboxes
+    id: slice
+    attributes:
+      label: Which slice do you need?
+      description: Pick whatever applies. Smaller is preferred.
+      options:
+        - label: "`01_approved/` — curated approved knowledge bodies"
+        - label: "`02_reference/` — second-layer reference material"
+        - label: "`metadata/chunks/` — pre-chunked documents"
+        - label: "`metadata/vectors/` — local vector index only"
+        - label: "Other / not sure (describe below)"
+    validations:
+      required: true
+  - type: textarea
+    id: rights
+    attributes:
+      label: Rights you already hold to the source material
+      description: |
+        Briefly state how you currently have legitimate access to the underlying
+        training content (purchased copies, institutional license, coauthored
+        with the original coach, etc.). This is a precondition for sharing.
+      placeholder: e.g. own physical copies of the relevant titles; institutional access; etc.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Optional. Preferred contact channel for follow-up, deadlines, etc.
+    validations:
+      required: false
+  - type: checkboxes
+    id: ack
+    attributes:
+      label: Acknowledgments
+      options:
+        - label: I will not redistribute the package or its contents.
+          required: true
+        - label: I understand the package will be shared out-of-band, not via this public issue.
+          required: true

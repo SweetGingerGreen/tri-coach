@@ -1,0 +1,51 @@
+name: Bug report
+description: Report a problem in the pipeline (ingest / vector store / retrieval / plan generation).
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: What went wrong
+      description: A short description of the unexpected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: |
+        Commands run, env vars set, files involved. If you're using the public
+        sample corpus under `examples/`, say so — that lets the maintainer
+        repro without the private package.
+      placeholder: |
+        1. `python examples/seed_demo.py`
+        2. ran `python rag_answer.py ...`
+        3. saw: ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: false
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: Python version, OS, and which model/provider you're using.
+      placeholder: |
+        - Python: 3.10.x
+        - OS: macOS 14.x / Linux ...
+        - TRI_RAG_PROVIDER: ollama | openai-compatible | dry-run
+        - Model/endpoint: ...
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs / tracebacks
+      render: shell
+    validations:
+      required: false
