@@ -47,7 +47,7 @@ triathlon-knowledge/metadata/*_latest.csv
 triathlon-knowledge/metadata/*_simulated*
 triathlon-knowledge/metadata/*_eval_*
 triathlon-knowledge/metadata/*eval*
-triathlon-knowledge/metadata/coach_plan_basa226_extract_latest.json
+triathlon-knowledge/metadata/ironman_plan_extract_latest.json
 triathlon-knowledge/metadata/triathlon_plan_orchestrator_eval_*.json
 triathlon-knowledge/metadata/bike_plan_*_input*.json
 triathlon-knowledge/metadata/bike_plan_*_plan.json
@@ -57,6 +57,6 @@ triathlon-knowledge/metadata/bike_plan_*_plan.json
 !triathlon-knowledge/metadata/00_brain_boundaries.md
 !triathlon-knowledge/metadata/document_template.md
 !triathlon-knowledge/metadata/eval_questions.md
-!triathlon-knowledge/metadata/coach_plan_basa226_logic_profile.json
+!triathlon-knowledge/metadata/ironman_plan_logic_profile.json
 !triathlon-knowledge/90_notes/
 !triathlon-knowledge/90_notes/*.md

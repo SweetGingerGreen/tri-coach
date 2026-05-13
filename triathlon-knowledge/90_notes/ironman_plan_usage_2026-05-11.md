@@ -1,7 +1,7 @@
-# Coach Plan Usage Note: Basa 226
+# Coach Plan Usage Note: Ironman 226
 
-source_path: `triathlon-knowledge/00_inbox/巴萨226备战计划.numbers`
-extract_path: `triathlon-knowledge/metadata/coach_plan_basa226_extract_latest.json`
+source_path: `triathlon-knowledge/00_inbox/<private_ironman_226_plan>.numbers`
+extract_path: `triathlon-knowledge/metadata/ironman_plan_extract_latest.json`
 status: `analyzed_not_ingested`
 trust_tier: `coach_historical_plan`
 use_boundary: `logic_case_not_gold_standard`
@@ -77,9 +77,9 @@ use_boundary: `logic_case_not_gold_standard`
 
 ## Next Implementation Step
 
-新增一个 `coach_plan_basa226_logic_check.py` 比较合适。它不生成课表，只读取：
+新增一个 `ironman_plan_logic_check.py` 比较合适。它不生成课表，只读取：
 
-- `triathlon-knowledge/metadata/coach_plan_basa226_extract_latest.json`
+- `triathlon-knowledge/metadata/ironman_plan_extract_latest.json`
 - `triathlon-knowledge/metadata/triathlon_plan_orchestrator_latest.json`
 
 然后输出：

@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-Check whether the generated triathlon schedule follows the Basa 226 coach-plan logic.
+Check whether the generated triathlon schedule follows a historical Ironman 226
+coach-plan logic profile.
 
 This is a shape check, not a gold-standard comparison. User availability and
-daily preflight remain stronger than this historical coach-plan sample.
+daily preflight remain stronger than this historical coach-plan sample. The
+referenced extract is treated as a private case study and is excluded from
+version control.
 """
 from __future__ import annotations
 
@@ -14,12 +17,12 @@ from typing import Any
 
 
 ROOT = Path(__file__).parent.resolve()
-DEFAULT_PROFILE = ROOT / "triathlon-knowledge" / "metadata" / "coach_plan_basa226_logic_profile.json"
-DEFAULT_EXTRACT = ROOT / "triathlon-knowledge" / "metadata" / "coach_plan_basa226_extract_latest.json"
+DEFAULT_PROFILE = ROOT / "triathlon-knowledge" / "metadata" / "ironman_plan_logic_profile.json"
+DEFAULT_EXTRACT = ROOT / "triathlon-knowledge" / "metadata" / "ironman_plan_extract_latest.json"
 DEFAULT_SCHEDULE = ROOT / "triathlon-knowledge" / "metadata" / "triathlon_plan_orchestrator_latest.json"
-DEFAULT_OUTPUT = ROOT / "triathlon-knowledge" / "metadata" / "coach_plan_basa226_logic_check_latest.json"
-DEFAULT_REVIEW_MD = ROOT / "triathlon-knowledge" / "metadata" / "coach_plan_basa226_logic_check_latest.md"
-SCHEMA_VERSION = "coach_plan_basa226_logic_check_v0.1"
+DEFAULT_OUTPUT = ROOT / "triathlon-knowledge" / "metadata" / "ironman_plan_logic_check_latest.json"
+DEFAULT_REVIEW_MD = ROOT / "triathlon-knowledge" / "metadata" / "ironman_plan_logic_check_latest.md"
+SCHEMA_VERSION = "ironman_plan_logic_check_v0.1"
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 DAY_LABELS = {
     "Monday": "周一",
@@ -392,7 +395,7 @@ def build_logic_check(
 def build_markdown(report: dict[str, Any]) -> str:
     profile = report.get("profile_fit") or {}
     lines = [
-        "# Basa 226 Logic Check",
+        "# Ironman 226 Logic Check",
         "",
         f"- status: `{report.get('status')}`",
         f"- profile_fit: `{profile.get('profile_fit')}` ({profile.get('confidence')})",

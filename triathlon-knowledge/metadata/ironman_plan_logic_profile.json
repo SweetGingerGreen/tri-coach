@@ -1,7 +1,7 @@
 {
-  "schema_version": "coach_plan_basa226_logic_profile_v0.1",
-  "source_path": "triathlon-knowledge/00_inbox/巴萨226备战计划.numbers",
-  "source_extract": "triathlon-knowledge/metadata/coach_plan_basa226_extract_latest.json",
+  "schema_version": "ironman_plan_logic_profile_v0.1",
+  "source_path": "triathlon-knowledge/00_inbox/<private_ironman_226_plan>.numbers",
+  "source_extract": "triathlon-knowledge/metadata/ironman_plan_extract_latest.json",
   "use_boundary": "logic_case_not_gold_standard",
   "allowed_use": [
     "understand_coach_design_logic",
