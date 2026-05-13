@@ -1,2 +1,8 @@
+# Runtime dependencies for tri-coach.
+# Requires Python >= 3.10 (the codebase uses PEP 604 union syntax).
 numpy>=1.26
 openpyxl>=3.1
+
+# Optional: only needed by ingest_knowledge_v2.py for PDF parsing.
+# Comment out if you don't ingest PDFs.
+opendataloader-pdf>=0.1

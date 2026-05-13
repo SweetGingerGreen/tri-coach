@@ -6,6 +6,11 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
+# IDE / agent config
+.claude/
+.idea/
+.vscode/
+
 # local environments
 venv/
 venv_mineru/
@@ -22,6 +27,9 @@ output/
 packages/
 dist/
 releases/
+
+# example demo build artifacts
+examples/build/
 
 # raw/private/copyrighted knowledge assets
 triathlon-knowledge/00_inbox/
