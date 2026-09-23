@@ -8,6 +8,7 @@ author: tri-coach demo
 date: 2026-05-13
 tags: [aerobic decoupling, cardiac drift, durability, Pa:HR]
 usage_rule: Use as a generic illustration of decoupling analysis; not a diagnostic threshold.
+approved_status: approved
 ---
 
 # 核心摘要 (Summary)

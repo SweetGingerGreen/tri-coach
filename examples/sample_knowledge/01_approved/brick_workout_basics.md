@@ -8,6 +8,7 @@ author: tri-coach demo
 date: 2026-05-13
 tags: [brick, transition, race specificity, run off the bike]
 usage_rule: Generic illustration of brick design; volume and intensity must be set by the athlete's plan and current fatigue.
+approved_status: approved
 ---
 
 # 核心摘要 (Summary)

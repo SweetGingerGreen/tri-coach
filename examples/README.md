@@ -52,7 +52,7 @@ python3 -m tri_coach.rag.answer \
   --db examples/build/demo_vectors.sqlite \
   --provider ollama \
   --chat-model gemma2:latest \
-  --question "Why does cardiac drift matter for a long-course triathlete?"
+  "Why does cardiac drift matter for a long-course triathlete?"
 ```
 
 Use `--provider dry-run` if you only want to see the retrieval prompt without

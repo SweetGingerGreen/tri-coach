@@ -8,6 +8,7 @@ author: tri-coach demo
 date: 2026-05-13
 tags: [zone 2, aerobic base, FTP, LT1, heart rate]
 usage_rule: Use as a generic illustration of Zone 2 base work; do not treat as an individualized prescription.
+approved_status: approved
 ---
 
 # 核心摘要 (Summary)
