@@ -25,6 +25,9 @@ knowledge-env/
 .bench/
 output/
 packages/
+
+# personal athlete coaching plans (private training data)
+coaching/
 dist/
 releases/
 
