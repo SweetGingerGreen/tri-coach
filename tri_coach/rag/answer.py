@@ -839,7 +839,7 @@ def is_bike_plan_explain_request(question: str) -> bool:
     question_lower = question.lower()
     explain_signals = ("为什么", "why", "解释", "依据", "来源", "reason")
     plan_signals = ("安排", "排", "slot", "槽位", "weekday", "星期", "周二", "周三", "周日", "easy", "hard", "long")
-    return contains_any(question_lower, explain_signals) and contains_any(question_lower, plan_signals)
+    return contains_any_word(question_lower, explain_signals) and contains_any_word(question_lower, plan_signals)
 
 
 def is_bike_plan_week_explain_request(question: str) -> bool:
@@ -918,17 +918,15 @@ def parse_plan_week(question: str) -> int | None:
 
 
 def parse_plan_day(question: str) -> str | None:
-    lowered = question.lower()
     for alias, day in PLAN_DAY_ALIASES.items():
-        if alias in question or alias in lowered:
+        if contains_word(question, alias):
             return day
     return None
 
 
 def parse_plan_slot_type(question: str) -> str | None:
-    lowered = question.lower()
     for slot_type in ("hard", "long", "technical", "easy"):
-        if slot_type in lowered:
+        if contains_word(question, slot_type):
             return slot_type
     if "长骑" in question:
         return "long"
@@ -1702,6 +1700,23 @@ def summarize_long_ride_nutrition_review(question: str, config: RagConfig) -> di
 
 def contains_any(text: str, signals: tuple[str, ...]) -> bool:
     return any(signal in text for signal in signals)
+
+
+def contains_word(text: str, signal: str) -> bool:
+    """Match an ASCII signal only as a whole English word; CJK signals match as substrings.
+
+    Hyphenated compounds count as one word, so "long" does not fire on "long-course"
+    and "mon" does not fire on "common". A trailing plural "s" is allowed ("Sundays").
+    Chinese text has no word boundaries, so "是long" and "周二easy" still match.
+    """
+    if not signal.isascii():
+        return signal in text
+    pattern = rf"(?<![a-z0-9-]){re.escape(signal)}s?(?![a-z0-9-])"
+    return re.search(pattern, text, flags=re.IGNORECASE) is not None
+
+
+def contains_any_word(text: str, signals: tuple[str, ...]) -> bool:
+    return any(contains_word(text, signal) for signal in signals)
 
 
 def is_bike_power_plan_request(question: str) -> bool:

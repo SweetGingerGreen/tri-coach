@@ -164,6 +164,25 @@ CASES = [
         ],
     ),
     BikeEvalCase(
+        case_id="bike_plan_slot_explanation_en",
+        name="英文周级课表槽位来源解释",
+        question="Why is week 1 Tuesday an easy Endurance Ride?",
+        required_answer_groups=[
+            [r"第\s*1\s*周", r"周二"],
+            [r"easy", r"Endurance Ride"],
+            [r"\[S1\]"],
+        ],
+    ),
+    BikeEvalCase(
+        case_id="bike_plan_slot_false_positive_en",
+        name="英文复合词不应误触发课表槽位解释",
+        question="Why does cardiac drift matter for a long-course triathlete?",
+        forbidden_answer_patterns=[
+            r"生成器先在周级确定课型",
+            r"该项的排程规则",
+        ],
+    ),
+    BikeEvalCase(
         case_id="bike_plan_week_explanation",
         name="周级课表整周来源解释",
         question="解释第1周所有安排的依据。",
