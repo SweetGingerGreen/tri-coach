@@ -48,7 +48,7 @@ python3 examples/seed_demo.py --skip-build --query "..."
 Once the demo index exists, you can also point the answer layer at it:
 
 ```bash
-python3 rag_answer.py \
+python3 -m tri_coach.rag.answer \
   --db examples/build/demo_vectors.sqlite \
   --provider ollama \
   --chat-model gemma2:latest \

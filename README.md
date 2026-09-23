@@ -28,17 +28,50 @@ logic into a retrievable, verifiable, and incrementally extensible local pipelin
 
 Code (MIT licensed):
 
-- `chunk_approved.py`, `vector_store.py`, `rag_answer.py` — local chunking, vector
-  store, and answer/generation entry point.
-- `bike_plan_*.py` — cycling plan generation, daily preflight, long-ride
-  fueling review, etc.
-- `triathlon_plan_orchestrator.py` — triathlon-level orchestrator that keeps the
-  cycling plan as the spine and coordinates run, swim, brick, and intensity
-  budget.
-- `ironman_plan_logic_check.py` — consistency check against a historical
-  Ironman 226 coach-plan logic profile (logic only, not gold standard).
-- `eval_*.py` — local evals for the RAG layer, bike plan modules, and the
-  triathlon orchestrator.
+```text
+tri_coach/                      engine package
+  paths.py                      repo ROOT shared by every module
+  rag/
+    chunking.py                 chunk approved/reference Markdown into JSONL
+    vector_store.py             local SQLite vector store (build / search)
+    answer.py                   retrieval + cited answer generation
+    chat_ui.py                  stdlib-only local chat UI over answer.py
+  bike_plan/
+    intake.py → generator.py → review.py → candidate.py
+                                weekly cycling plan pipeline
+    daily_preflight.py, daily_draft.py
+                                day-of availability/readiness check and session draft
+    long_ride_nutrition_review.py
+                                long-ride fueling review
+    garmin_prefill.py           prefill daily preflight CSVs from Garmin Connect
+  orchestrator.py               triathlon-level orchestrator: keeps the cycling plan
+                                as the spine, coordinates run, swim, brick and
+                                intensity budget
+  ironman_logic_check.py        consistency check against a historical Ironman 226
+                                coach-plan logic profile (logic only, not gold standard)
+evals/eval_*.py                 local evals for the RAG layer, bike plan modules and
+                                the orchestrator
+scripts/                        one-off ingest / migration helpers
+examples/                       public demo corpus and seed script
+```
+
+Every module runs from the repo root with `python3 -m`, for example
+`python3 -m tri_coach.bike_plan.generator --help` or
+`python3 -m evals.eval_bike_plan_generator`. Older notes under
+`triathlon-knowledge/90_notes/` use the pre-2026-09 flat file names; map them as:
+
+| Old script | Module |
+|---|---|
+| `chunk_approved.py` | `tri_coach.rag.chunking` |
+| `vector_store.py` | `tri_coach.rag.vector_store` |
+| `rag_answer.py` | `tri_coach.rag.answer` |
+| `rag_chat_ui.py` | `tri_coach.rag.chat_ui` |
+| `bike_plan_<name>.py` | `tri_coach.bike_plan.<name>` |
+| `garmin_prefill_preflight.py` | `tri_coach.bike_plan.garmin_prefill` |
+| `triathlon_plan_orchestrator.py` | `tri_coach.orchestrator` |
+| `ironman_plan_logic_check.py` | `tri_coach.ironman_logic_check` |
+| `eval_<name>.py` | `evals.eval_<name>` |
+| `ingest_knowledge*.py`, `prepare_second_layer.py`, `seed_v2_vectors_from_v1.py` | `scripts.<name>` |
 
 Tracked governance / notes:
 
@@ -72,7 +105,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env  # then edit if you're not on default local Ollama
-python3 -m py_compile *.py
+python3 -m compileall -q tri_coach evals scripts examples
 ```
 
 To exercise the full ingest → embed → retrieve loop without any private data,
@@ -157,11 +190,14 @@ property of their respective owners.
 
 代码（MIT 协议）：
 
-- `chunk_approved.py` / `vector_store.py` / `rag_answer.py`：本地切块、向量存储和问答入口。
-- `bike_plan_*.py`：骑行课表、日程预检、长骑补给复核等生成/复核模块。
-- `triathlon_plan_orchestrator.py`：三项总课表协调器，保留骑行计划主体，并协调跑步、游泳、brick 和强度预算。
-- `ironman_plan_logic_check.py`：用一份历史 Ironman 226 教练计划提取出的设计逻辑做一致性校验（逻辑校验，不是黄金标准）。
-- `eval_*.py`：针对 RAG、骑行计划、三项协调器的本地评估脚本。
+- `tri_coach/rag/`（`chunking.py` / `vector_store.py` / `answer.py` / `chat_ui.py`）：本地切块、向量存储、问答入口和本地对话验证界面。
+- `tri_coach/bike_plan/`：骑行课表、日程预检、长骑补给复核、Garmin 预填等生成/复核模块。
+- `tri_coach/orchestrator.py`：三项总课表协调器，保留骑行计划主体，并协调跑步、游泳、brick 和强度预算。
+- `tri_coach/ironman_logic_check.py`：用一份历史 Ironman 226 教练计划提取出的设计逻辑做一致性校验（逻辑校验，不是黄金标准）。
+- `evals/eval_*.py`：针对 RAG、骑行计划、三项协调器的本地评估脚本。
+- `scripts/`：一次性的入库 / 迁移辅助脚本。
+
+所有模块都在仓库根目录用 `python3 -m` 运行，例如 `python3 -m tri_coach.bike_plan.generator --help`、`python3 -m evals.eval_bike_plan_generator`。`triathlon-knowledge/90_notes/` 里较早的笔记仍用旧的平铺文件名，新旧对照见英文部分的表格。
 
 跟踪的治理 / 笔记：
 
@@ -187,7 +223,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env  # 不用默认本地 Ollama 的话，按需修改
-python3 -m py_compile *.py
+python3 -m compileall -q tri_coach evals scripts examples
 ```
 
 想在不接触私有数据的情况下，跑一次完整的 入库 → 向量化 → 检索 流程，可以运行公开 demo：

@@ -63,7 +63,8 @@ def main() -> int:
         run(
             [
                 sys.executable,
-                "chunk_approved.py",
+                "-m",
+                "tri_coach.rag.chunking",
                 "--approved-dir",
                 str(SAMPLE_APPROVED),
                 "--output",
@@ -75,7 +76,8 @@ def main() -> int:
         run(
             [
                 sys.executable,
-                "vector_store.py",
+                "-m",
+                "tri_coach.rag.vector_store",
                 "build",
                 "--chunks",
                 str(CHUNKS),
@@ -91,7 +93,8 @@ def main() -> int:
     run(
         [
             sys.executable,
-            "vector_store.py",
+            "-m",
+            "tri_coach.rag.vector_store",
             "search",
             args.query,
             "--db",
