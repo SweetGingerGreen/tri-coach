@@ -106,6 +106,21 @@ CASES = [
             [r"nutrition", r"营养", r"carbohydrate", r"水合", r"hydration"],
         ],
     ),
+    EvalCase(
+        case_id="swim_css_calculator",
+        name="游泳 CSS 配速区间计算",
+        question="我50米自由泳0:27，200米2:00，400米4:20，帮我算游泳CSS和训练区间。",
+        required_answer_groups=[
+            [r"CSS", r"阈值配速"],
+            [r"1:08\.3"],
+            [r"Z1", r"Z2", r"Z3", r"Z4", r"Z5"],
+            [r"0:58\.0", r"1:45\.1"],
+        ],
+        required_source_groups=[
+            [r"游泳 CSS 阈值配速与五大训练区间换算模板"],
+            [r"triathlon-knowledge/01_approved/swim/swim_css_pace_zone_calculator\.md"],
+        ],
+    ),
 ]
 
 

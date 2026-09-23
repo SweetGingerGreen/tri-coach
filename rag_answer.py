@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import sqlite3
@@ -553,6 +554,241 @@ def bike_calculator_fallback(values: dict[str, float], sources: list[dict[str, A
         "4. 还缺哪些数据\n"
         "如果要进一步安排实际补给，还需要体重、环境温度、排汗率、每小时碳水耐受、钠和液体耐受、"
         "以及训练中已验证过的补给记录。"
+    )
+
+
+SWIM_CSS_CALCULATOR_TITLE = "游泳 CSS 阈值配速与五大训练区间换算模板"
+
+# Z1-Z4 are CSS speed-percentage bands (fast_pct, slow_pct); the matching card is
+# triathlon-knowledge/01_approved/swim/swim_css_pace_zone_calculator.md.
+SWIM_CSS_ZONE_PERCENTS: tuple[tuple[str, str, float, float], ...] = (
+    ("Z1", "恢复 / 技术", 0.75, 0.65),
+    ("Z2", "轻松有氧", 0.85, 0.75),
+    ("Z3", "节奏 / 稳态", 0.92, 0.85),
+    ("Z4", "阈值", 1.00, 0.92),
+)
+
+_SWIM_TIME_RE = (
+    r"\d{1,3}\s*[:：]\s*\d{1,2}(?:\s*[.．]\s*\d{1,2})?"
+    r"|\d{1,3}\s*分(?:\s*\d{1,2}\s*秒?)?(?:\s*\d{1,2})?"
+    r"|\d{1,3}(?:[.．]\d{1,2})?\s*秒"
+)
+_SWIM_UNIT = r"(?:米|公尺|自由泳|自由|free|metre|meter|m(?![A-Za-z]))"
+
+
+def format_swim_pace(seconds: float) -> str:
+    """Format a per-100m pace (seconds) as M:SS.S, rounded half-up to 0.1 s."""
+    if not math.isfinite(seconds) or seconds <= 0:
+        return "--"
+    rounded = math.floor(seconds * 10 + 0.5) / 10.0
+    minutes = int(rounded // 60)
+    secs = rounded - minutes * 60
+    return f"{minutes}:{secs:04.1f}"
+
+
+def split_swim_zone(fast: float, slow: float) -> list[dict[str, Any]]:
+    """Split a [fast, slow] pace band into 上/中/下 thirds by pace."""
+    lo = min(fast, slow)
+    hi = max(fast, slow)
+    step = (hi - lo) / 3.0
+    return [
+        {"label": "上", "from": lo, "to": lo + step},
+        {"label": "中", "from": lo + step, "to": lo + 2.0 * step},
+        {"label": "下", "from": lo + 2.0 * step, "to": hi},
+    ]
+
+
+def _parse_swim_time_token(token: str) -> float | None:
+    token = token.strip().replace("．", ".").replace("：", ":").replace(" ", "")
+    try:
+        if ":" in token:
+            mm, rest = token.split(":", 1)
+            if "." in rest:
+                ss, frac = rest.split(".", 1)
+                return int(mm) * 60 + int(ss) + float("0." + frac)
+            return int(mm) * 60 + int(rest)
+        if "分" in token:
+            mm, rest = token.split("分", 1)
+            hundredths = 0.0
+            if "秒" in rest:
+                ss, hh = rest.split("秒", 1)
+                if hh:
+                    hundredths = int(hh) / 100.0
+            else:
+                ss = rest
+            ss = ss or "0"
+            if "." in ss:
+                whole, frac = ss.split(".", 1)
+                return int(mm) * 60 + int(whole or "0") + float("0." + frac) + hundredths
+            return int(mm) * 60 + int(ss) + hundredths
+        if "秒" in token:
+            return float(token.split("秒", 1)[0])
+    except (ValueError, TypeError):
+        return None
+    return None
+
+
+def _extract_swim_time_for_distance(question: str, distance: int) -> float | None:
+    after = re.search(
+        rf"(?<![0-9]){distance}(?![0-9])\s*{_SWIM_UNIT}[^0-9]{{0,8}}?({_SWIM_TIME_RE})",
+        question,
+        flags=re.IGNORECASE,
+    )
+    if after:
+        seconds = _parse_swim_time_token(after.group(1))
+        if seconds and seconds > 0:
+            return seconds
+    before = re.search(
+        rf"({_SWIM_TIME_RE})[^0-9]{{0,8}}?(?<![0-9]){distance}(?![0-9])\s*{_SWIM_UNIT}",
+        question,
+        flags=re.IGNORECASE,
+    )
+    if before:
+        seconds = _parse_swim_time_token(before.group(1))
+        if seconds and seconds > 0:
+            return seconds
+    return None
+
+
+def parse_swim_css_inputs(question: str) -> dict[str, float] | None:
+    question_lower = question.lower()
+    intent = ("css" in question_lower) or any(
+        term in question
+        for term in ("配速区间", "训练区间", "阈值配速", "配速分区", "临界游速", "游泳区间")
+    )
+    if not intent:
+        return None
+    t50 = _extract_swim_time_for_distance(question, 50)
+    t200 = _extract_swim_time_for_distance(question, 200)
+    t400 = _extract_swim_time_for_distance(question, 400)
+    if not t50 or not t200 or not t400:
+        return None
+    if any(term in question for term in ("短距离", "短距", "冲刺主项", "短程")) or "50/100" in question:
+        event_type = "short"
+    elif any(term in question for term in ("长距离", "长距", "1500", "800")):
+        event_type = "long"
+    else:
+        event_type = "middle"
+    return {"t50": t50, "t200": t200, "t400": t400, "event_type": event_type}
+
+
+def swim_css_zone_result(values: dict[str, float]) -> dict[str, Any]:
+    """CSS from 50/400 and 200/400 test times, blended by event type, plus pace zones. Inputs are seconds."""
+    t50 = values["t50"]
+    t200 = values["t200"]
+    t400 = values["t400"]
+    event_type = values.get("event_type", "middle")
+    if event_type not in ("short", "middle", "long"):
+        event_type = "middle"
+
+    avg50 = t50 * 2.0
+    avg200 = t200 / 2.0
+    avg400 = t400 / 4.0
+    css_50_400 = (t400 - t50) / 3.5
+    css_200_400 = (t400 - t200) / 2.0
+
+    if event_type == "short":
+        css = css_50_400
+        method = "50/400 CSS"
+    elif event_type == "long":
+        css = css_200_400
+        method = "200/400 CSS"
+    else:
+        css = (css_50_400 + css_200_400) / 2.0
+        method = "50/400 与 200/400 平均 CSS"
+
+    zones: list[dict[str, Any]] = []
+    for code, name, fast_pct, slow_pct in SWIM_CSS_ZONE_PERCENTS:
+        fast = css / fast_pct
+        slow = css / slow_pct
+        zones.append(
+            {
+                "code": code,
+                "name": name,
+                "fast": fast,
+                "slow": slow,
+                "subzones": split_swim_zone(fast, slow),
+            }
+        )
+    zone5_fast = avg50 + 4.0
+    zone5_slow = max(css, zone5_fast + 6.0)
+    zones.append(
+        {
+            "code": "Z5",
+            "name": "高强度 / 速度",
+            "fast": zone5_fast,
+            "slow": zone5_slow,
+            "subzones": split_swim_zone(zone5_fast, zone5_slow),
+        }
+    )
+
+    css_gap = abs(css_50_400 - css_200_400)
+    warnings: list[str] = []
+    if avg50 >= avg200:
+        warnings.append("50 米折算配速通常应快于 200 米平均配速，请检查 50 米或 200 米成绩。")
+    if avg200 >= avg400:
+        warnings.append("200 米平均配速通常应快于 400 米平均配速，请检查 200 米或 400 米成绩。")
+    if css <= 0 or not math.isfinite(css):
+        warnings.append("当前成绩无法计算出有效 CSS，请检查输入。")
+    if css_gap > 8:
+        warnings.append(
+            f"两种 CSS 相差约 {css_gap:.1f} 秒/100m，冲刺与巡航能力差距较大，"
+            "建议同时参考 50/400 与 200/400 两种结果。"
+        )
+
+    return {
+        "t50": t50,
+        "t200": t200,
+        "t400": t400,
+        "event_type": event_type,
+        "method": method,
+        "avg50": avg50,
+        "avg200": avg200,
+        "avg400": avg400,
+        "css_50_400": css_50_400,
+        "css_200_400": css_200_400,
+        "css": css,
+        "css_gap": css_gap,
+        "zones": zones,
+        "warnings": warnings,
+    }
+
+
+def swim_css_fallback(values: dict[str, float], sources: list[dict[str, Any]]) -> str:
+    result = swim_css_zone_result(values)
+    source_refs = "、".join(
+        f"[{source['label']}]"
+        for source in sources
+        if SWIM_CSS_CALCULATOR_TITLE in source.get("title", "")
+    ) or "[S1]"
+    zone_lines = "\n".join(
+        f"- {zone['code']} {zone['name']}："
+        f"{format_swim_pace(zone['fast'])}–{format_swim_pace(zone['slow'])} /100m"
+        for zone in result["zones"]
+    )
+    warn_text = ""
+    if result["warnings"]:
+        warn_text = "\n注意：" + "；".join(result["warnings"])
+    return (
+        "1. 结论\n"
+        f"按 `{SWIM_CSS_CALCULATOR_TITLE}` 的计算链估算：主项按「{result['method']}」取值，"
+        f"CSS 阈值配速约 {format_swim_pace(result['css'])} /100m。五大训练配速区间（每 100 米）：\n"
+        f"{zone_lines}\n"
+        f"来源：{source_refs}。{warn_text}\n\n"
+        "2. 依据\n"
+        "计算复用该模板的输入与公式链：50/200/400 米成绩先算两种 CSS"
+        "（50/400 =(t400−t50)/3.5，200/400 =(t400−t200)/2），按主项选定 CSS，"
+        "Z1–Z4 按 CSS 速度百分比 65/75/85/92/100% 换算，Z4 快端即 CSS；"
+        "Z5 以 50 米折算配速为锚（快端 avg50+4，慢端 max(css, avg50+10)）。"
+        f"本次 50/400 CSS≈{format_swim_pace(result['css_50_400'])}、"
+        f"200/400 CSS≈{format_swim_pace(result['css_200_400'])} /100m。来源：{source_refs}。\n\n"
+        "3. 现在应该怎么做\n"
+        "把区间作为训练配速参考：恢复/技术课用 Z1，有氧基础用 Z2，节奏稳态课用 Z3，"
+        "阈值课贴近 Z4，短组速度课用 Z5；每个区间再分上/中/下，「上」更快、「下」更慢，按课次目的取段。"
+        "这是基于成绩的估算，不等于真实心率区间，仍需结合心率、主观用力感(RPE)、技术状态和恢复情况校准。\n\n"
+        "4. 还缺哪些数据\n"
+        "要把配速区间落到具体课表，还需要：较新的 50/200/400 米测试成绩、近期训练心率与 RPE、"
+        "目标比赛距离与日期、单次课的训练目的，以及泳池长度（25m/50m）等条件。"
     )
 
 
@@ -1660,6 +1896,11 @@ def answer_with_deterministic_tools(
     bike_values = parse_bike_calculator_inputs(question)
     if bike_values and any("骑行热量与碳水消耗计算模板" in source.get("title", "") for source in sources):
         return bike_calculator_fallback(bike_values, sources)
+    swim_values = parse_swim_css_inputs(question)
+    if swim_values and any(
+        SWIM_CSS_CALCULATOR_TITLE in source.get("title", "") for source in sources
+    ):
+        return swim_css_fallback(swim_values, sources)
     if is_periodization_decoupling_request(question):
         return periodization_decoupling_fallback(sources)
     if is_lateral_knee_injury_request(question) and has_itbs_sources(sources):
