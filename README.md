@@ -44,6 +44,8 @@ tri_coach/                      engine package
     long_ride_nutrition_review.py
                                 long-ride fueling review
     garmin_prefill.py           prefill daily preflight CSVs from Garmin Connect
+  strava/                       post-workout Strava log (python3 -m tri_coach.strava):
+                                OAuth + description writer, data card PNG, photo picker
   orchestrator.py               triathlon-level orchestrator: keeps the cycling plan
                                 as the spine, coordinates run, swim, brick and
                                 intensity budget
@@ -192,6 +194,7 @@ property of their respective owners.
 
 - `tri_coach/rag/`（`chunking.py` / `vector_store.py` / `answer.py` / `chat_ui.py`）：本地切块、向量存储、问答入口和本地对话验证界面。
 - `tri_coach/bike_plan/`：骑行课表、日程预检、长骑补给复核、Garmin 预填等生成/复核模块。
+- `tri_coach/strava/`：训练后写 Strava 日志（`python3 -m tri_coach.strava`）：OAuth 授权和描述写入、数据卡片 PNG、按拍摄时间挑照片并去掉 EXIF/GPS。Strava 公开 API 不能传照片和私人笔记，这两样走网页编辑页。
 - `tri_coach/orchestrator.py`：三项总课表协调器，保留骑行计划主体，并协调跑步、游泳、brick 和强度预算。
 - `tri_coach/ironman_logic_check.py`：用一份历史 Ironman 226 教练计划提取出的设计逻辑做一致性校验（逻辑校验，不是黄金标准）。
 - `evals/eval_*.py`：针对 RAG、骑行计划、三项协调器的本地评估脚本。
