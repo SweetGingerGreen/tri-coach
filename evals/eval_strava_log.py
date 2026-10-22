@@ -95,6 +95,8 @@ def case_token_refresh(failures: list[str]) -> None:
         check(method == "PUT" and url.endswith("/activities/42"), "update is PUT /activities/{id}", failures)
         check(kwargs.get("json") == {"description": "日志"}, "update sends only the given fields", failures)
         check(kwargs["headers"]["Authorization"] == "Bearer new-access", "bearer token is sent", failures)
+    retry = api.retrying_session().get_adapter("https://www.strava.com").max_retries
+    check(retry.total == 4 and "PUT" in retry.allowed_methods, "default session retries dropped connections", failures)
 
 
 def case_authorize_url(failures: list[str]) -> None:

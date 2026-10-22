@@ -27,6 +27,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 
 API_BASE = "https://www.strava.com/api/v3"
@@ -77,6 +79,20 @@ def _json_or_raise(response: requests.Response, what: str) -> Any:
     return response.json()
 
 
+def retrying_session() -> requests.Session:
+    """Session that retries dropped connections (seen as SSL EOF behind a local proxy) with backoff."""
+    retry = Retry(
+        total=4,
+        backoff_factor=1,
+        status_forcelist=(502, 503, 504),
+        allowed_methods=frozenset({"GET", "PUT"}),
+        raise_on_status=False,
+    )
+    session = requests.Session()
+    session.mount("https://", HTTPAdapter(max_retries=retry))
+    return session
+
+
 class StravaClient:
     def __init__(
         self,
@@ -85,7 +101,7 @@ class StravaClient:
         clock: Callable[[], float] = time.time,
     ) -> None:
         self.store = store
-        self.session = session or requests.Session()
+        self.session = session or retrying_session()
         self.clock = clock
 
     def access_token(self) -> str:

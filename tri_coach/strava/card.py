@@ -38,7 +38,7 @@ import numpy as np  # noqa: E402
 from matplotlib import font_manager  # noqa: E402
 from matplotlib.lines import Line2D  # noqa: E402
 from matplotlib.patches import Patch  # noqa: E402
-from matplotlib.ticker import FuncFormatter, MaxNLocator  # noqa: E402
+from matplotlib.ticker import FuncFormatter, MaxNLocator, MultipleLocator  # noqa: E402
 
 
 WIDTH_PX, HEIGHT_PX, DPI = 1080, 1350, 100
@@ -257,7 +257,11 @@ def _draw_panel(ax: plt.Axes, item: dict[str, Any], text: dict[str, Any], x_max:
     if kind == "pace":
         ax.invert_yaxis()
         ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _pos: _mmss(value)))
-    ax.yaxis.set_major_locator(MaxNLocator(nbins=4, integer=True))
+        span = abs(ax.get_ylim()[1] - ax.get_ylim()[0])
+        step = next((base for base in (15, 30, 60, 120, 300) if span / base <= 5), 600)
+        ax.yaxis.set_major_locator(MultipleLocator(step))
+    else:
+        ax.yaxis.set_major_locator(MaxNLocator(nbins=4, integer=True))
     ax.set_xlim(0, x_max)
 
     ax.set_facecolor(SURFACE)
