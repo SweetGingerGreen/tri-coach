@@ -7,36 +7,101 @@
       "gender": "F",
       "age_group_2026": "F35-39",
       "home": "上海",
-      "goals": {"2027": "拿到中铁协健将等级；分龄组奖金尽量覆盖报名费和差旅。"},
-      "planning_interest": ["prize_money", "podium"]
+      "goals": {
+        "2027": "拿到中铁协健将等级；分龄组奖金尽量覆盖报名费和差旅。"
+      },
+      "planning_interest": [
+        "prize_money",
+        "podium"
+      ],
+      "planner": {
+        "home_province": "上海",
+        "home_city": "上海",
+        "ctsa_member": true,
+        "formats": [
+          "olympic",
+          "sprint"
+        ],
+        "max_races_per_month": 2,
+        "budget_cny": 12000
+      }
     }
   },
   "races": [
     {
       "key": "dalian-dahei-2026",
       "name": "2026年大连大黑石铁人三项公开赛",
+      "sport": "triathlon",
       "start_date": "2026-07-12",
-      "province": "辽宁", "city": "大连",
-      "links": [{"source": "wildto", "id": "11099"}],
-      "calendar": {"role": "B", "status": "done"},
+      "province": "辽宁",
+      "city": "大连",
+      "links": [
+        {
+          "source": "wildto",
+          "id": "11099"
+        }
+      ],
+      "calendar": {
+        "role": "B",
+        "status": "done"
+      },
       "result": {
-        "category": "全程分龄组", "division": "女子全程35-44岁组",
-        "finish": "2:41:10", "swim": "31:05", "t1": "2:40", "bike": "1:18:30", "t2": "1:25", "run": "47:30",
-        "time_source": "official", "rank_division": 3, "division_field": 14, "prize_cny": 800,
+        "category": "全程分龄组",
+        "division": "女子全程35-44岁组",
+        "finish": "2:41:10",
+        "swim": "31:05",
+        "t1": "2:40",
+        "bike": "1:18:30",
+        "t2": "1:25",
+        "run": "47:30",
+        "time_source": "official",
+        "rank_division": 3,
+        "division_field": 14,
+        "prize_cny": 800,
         "note": "示例数据，不是真实成绩。"
       }
     },
     {
       "key": "home-club-sprint-2026",
       "name": "示例俱乐部冲刺赛",
+      "sport": "triathlon",
       "start_date": "2026-05-17",
-      "province": "上海", "city": "上海",
-      "categories": [{"name": "冲刺距离", "swim_km": 0.75, "bike_km": 20, "run_km": 5, "fee_cny": 300}],
-      "prizes": [{"label": "女子组", "ranks": {"1": 1000, "2": 600, "3": 300}, "gender": "F", "pre_tax": 1,
-                  "note": "示例：手工录入、已核对的奖金表。"}],
-      "calendar": {"role": "C", "status": "done"},
-      "result": {"category": "冲刺距离", "finish": "1:12:40", "time_source": "watch", "rank_division": 2,
-                 "prize_cny": 600, "note": "示例数据。"}
+      "province": "上海",
+      "city": "上海",
+      "categories": [
+        {
+          "name": "冲刺距离",
+          "swim_km": 0.75,
+          "bike_km": 20,
+          "run_km": 5,
+          "fee_cny": 300
+        }
+      ],
+      "prizes": [
+        {
+          "label": "女子组",
+          "ranks": {
+            "1": 1000,
+            "2": 600,
+            "3": 300
+          },
+          "gender": "F",
+          "pre_tax": 1,
+          "note": "示例：手工录入、已核对的奖金表。"
+        }
+      ],
+      "calendar": {
+        "role": "C",
+        "status": "done"
+      },
+      "result": {
+        "category": "冲刺距离",
+        "finish": "1:12:40",
+        "time_source": "watch",
+        "rank_division": 2,
+        "prize_cny": 600,
+        "note": "示例数据。"
+      }
     }
   ]
 }

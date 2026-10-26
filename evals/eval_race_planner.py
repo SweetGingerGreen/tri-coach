@@ -8,7 +8,9 @@ sites, not copies of those pages. The checks keep the planner honest:
 - points tables, schedules, fee tables and after-tax copies never become prize ladders;
 - the same race on two sites lands on one record, and youth races don't merge into adult ones;
 - re-extraction never overwrites a ladder a person has verified;
-- the fetcher reuses snapshots and honours robots.txt.
+- the fetcher reuses snapshots and honours robots.txt;
+- the money view picks her category and fee, the right prize ladder, and an honest break-even rank;
+- the season plan respects spacing, monthly caps and her calendar; the digest sees what changed.
 """
 from __future__ import annotations
 
@@ -20,8 +22,10 @@ from pathlib import Path
 from typing import Any, Callable
 
 from tri_coach.paths import ROOT
+import datetime as dt
+
 from tri_coach.race_planner import categories as cat
-from tri_coach.race_planner import ingest, prizes, seed, store
+from tri_coach.race_planner import evaluate, ingest, prizes, report, runlog, seed, store
 from tri_coach.race_planner.fetch import Fetcher, FetchError
 from tri_coach.race_planner.sources import chinatriathlon, wildto, zuicool
 from tri_coach.race_planner.textutil import amount_of, normalize_name, parse_date, rank_of, rank_span_of
@@ -287,6 +291,137 @@ def case_seed(failures: list[str]) -> None:
         check(store.race_by_source(conn, "zuicool", "999") == crawled, "merge_races moves sources", failures)
 
 
+def _planning_db(tmp: str):
+    """A made-up world: athlete in Guangzhou (F35-39, non-member), four races with prize tables, one A race."""
+    conn = store.connect(Path(tmp) / "t.sqlite")
+    runlog.ensure(conn)
+    store.upsert_profile(conn, "self", {"gender": "F", "age_group_2026": "F35-39", "home": "广东 广州",
+                                        "planner": {"formats": ["olympic", "middle"], "max_races_per_month": 1}})
+
+    def race(name, day, province, city, categories, ladders, status=None):
+        race_id = store.insert_race(conn, {"name": name, "start_date": day, "province": province, "city": city,
+                                           "sport": "triathlon", "audience": "adult", "status": status})
+        for category in categories:
+            store.upsert_category(conn, race_id, "zuicool", cat.category_from_name(*category))
+        for ladder in ladders:
+            store.write_prize_table(conn, race_id, "wildto", ladder, status=ladder.pop("status", "extracted"))
+        return race_id
+
+    near = race("示例湾区铁人三项赛", "2026-05-10", "广东", "广州",
+                [("中铁协注册个人会员-全程组", "游泳1.5公里+自行车40公里+跑步10公里", 450),
+                 ("非中铁协注册个人会员-全程组", "游泳1.5公里+自行车40公里+跑步10公里", 550),
+                 ("半程组", "游泳0.75公里+自行车20公里+跑步5公里", 300)],
+                [{"label": "全程分龄组", "ranks": {1: 1600, 2: 1200, 3: 800}, "group_count": 12, "pre_tax": 1},
+                 {"label": "半程分龄组", "ranks": {1: 800, 2: 600}},
+                 {"label": "男子精英组", "ranks": {1: 5000, 2: 3000}, "gender": "M"}])
+    clash = race("示例佛山铁人三项赛", "2026-05-16", "广东", "佛山",
+                 [("全程组", "游泳1.5公里+自行车40公里+跑步10公里", 400)],
+                 [{"label": "女子全程组", "ranks": {1: 3000, 2: 2000}, "gender": "F", "pre_tax": 1}])
+    far = race("示例大连铁人三项赛", "2026-07-12", "辽宁", "大连",
+               [("全程组", "游泳1.5公里+自行车40公里+跑步10公里", 550)],
+               [{"label": "全程分龄组", "ranks": {1: 1600, 2: 1200}, "pre_tax": 1}])
+    mid = race("T100 示例站", "2026-09-20", "安徽", "黄山",
+               [("T100全程分龄组", "游泳2公里+自行车87公里+跑步18公里", 1000),
+                ("T100半程分龄组", "游泳1公里+自行车35公里+跑步9公里", 600)],
+               [{"label": "T100全程分龄组", "ranks": {1: 6000, 2: 3500}, "status": "manual"}])
+    a_race = race("示例江门奥运距离", "2026-11-15", "广东", "江门", [("奥运距离", "游泳1.5公里+自行车40公里+跑步10公里", 500)], [])
+    store.upsert_calendar(conn, "self", a_race, {"role": "A", "status": "planned"})
+    conn.commit()
+    return conn, {"near": near, "clash": clash, "far": far, "mid": mid, "a_race": a_race}
+
+
+def case_evaluate(failures: list[str]) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        conn, ids = _planning_db(tmp)
+        profile = evaluate.load_profile(conn)
+        check(profile.home_city == "广州" and profile.age_range(2027) == (36, 40), "profile parsed and ages shift by year", failures)
+        evals = {e.race["id"]: e for e in evaluate.evaluate_races(conn, profile, today=dt.date(2026, 1, 1),
+                                                                    until=dt.date(2026, 12, 31))}
+        near = evals[ids["near"]]
+        check(near.category and near.category["format"] == "olympic", f"olympic chosen over sprint: {near.category}", failures)
+        check(near.fee == 550 and near.fee_basis == "非会员价", f"non-member fee: {near.fee} {near.fee_basis}", failures)
+        check(near.travel["tier"] == "same_city" and near.cost == 650, f"same-city cost: {near.travel} {near.cost}", failures)
+        check(near.ladder and near.ladder["label"] == "全程分龄组", f"AG ladder for her category: {near.ladder}", failures)
+        check(near.ladder["net_ranks"] == {1: 1280, 2: 960, 3: 640} and near.break_even_rank == 2,
+              f"20% tax and break-even rank 2: {near.ladder['net_ranks']} {near.break_even_rank}", failures)
+        mid = evals[ids["mid"]]
+        check(mid.ladder is None and any("没有一张适用" in flag for flag in mid.flags),
+              "by format preference she enters the T100 半程, so the 全程 ladder must not be used", failures)
+        store.upsert_result(conn, ids["mid"], "self", {"category": "T100全程分龄组", "rank_division": 1}, "manual")
+        mid = {e.race["id"]: e for e in evaluate.evaluate_races(conn, profile, today=dt.date(2026, 1, 1),
+                                                                 until=dt.date(2026, 12, 31))}[ids["mid"]]
+        check(mid.category["name"] == "T100全程分龄组" and mid.ladder and mid.ladder["ranks"][1] == 6000,
+              f"her own result's category wins: {mid.category} {mid.ladder}", failures)
+        far = evals[ids["far"]]
+        check(far.break_even_rank is None and far.travel["tier"] == "far", "a far race with small prizes does not break even", failures)
+        clash = evals[ids["clash"]]
+        check(clash.ladder and clash.ladder["label"] == "女子全程组", "women's ladder chosen; men's never", failures)
+        ladders = [
+            {"id": 1, "label": "男子全程组", "gender": "M", "status": "extracted", "ranks": {1: 5000}},
+            {"id": 2, "label": "全程分龄组", "gender": None, "status": "extracted", "ranks": {1: 1600}},
+            {"id": 3, "label": "女子全程45-54岁组", "gender": "F", "age_min": 45, "age_max": 54, "status": "extracted", "ranks": {1: 2000}},
+            {"id": 4, "label": "女子全程35-44岁组", "gender": "F", "age_min": 35, "age_max": 44, "status": "extracted", "ranks": {1: 1800}},
+            {"id": 5, "label": "女子半程组", "gender": "F", "status": "verified", "ranks": {1: 900}},
+        ]
+        chosen = evaluate.match_ladder(ladders, {"name": "全程组"}, profile, 2026)
+        check(chosen and chosen["id"] == 4, f"women, her age, her distance: {chosen and chosen['label']}", failures)
+        profile.gender = "M"
+        chosen = evaluate.match_ladder(ladders, {"name": "全程组"}, profile, 2026)
+        check(chosen and chosen["id"] == 1, f"a man gets the men's ladder: {chosen and chosen['label']}", failures)
+        profile.gender = "F"
+        check(evaluate.match_ladder(ladders, {"name": "全程组"}, profile, 2036)["id"] == 3, "ten years on, the 45-54 ladder", failures)
+        check(evaluate.match_ladder(ladders[:1], {"name": "全程组"}, profile, 2026) is None,
+              "a race that only pays men pays her nothing", failures)
+        a_race = evals[ids["a_race"]]
+        check(a_race.calendar and a_race.calendar["role"] == "A", "calendar entry attached", failures)
+
+
+def case_season_and_report(failures: list[str]) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        conn, ids = _planning_db(tmp)
+        profile = evaluate.load_profile(conn)
+        evals = evaluate.evaluate_races(conn, profile, today=dt.date(2026, 1, 1), until=dt.date(2026, 12, 31))
+        plan = evaluate.plan_season(evals, profile)
+        picked = [e.race["id"] for e in plan.picked]
+        check(ids["clash"] in picked, f"the best-paying race is picked: {picked}", failures)
+        reasons = {e.race["id"]: reason for e, reason in plan.skipped}
+        check(ids["near"] not in picked and "6 天" in reasons.get(ids["near"], ""),
+              f"a race 6 days from a picked one is skipped for spacing: {reasons}", failures)
+        profile.spacing_days = {key: 1 for key in profile.spacing_days}
+        capped = evaluate.plan_season(evals, profile)
+        capped_reasons = {e.race["id"]: reason for e, reason in capped.skipped}
+        check("月已经排了" in capped_reasons.get(ids["near"], ""), f"monthly cap applies on its own: {capped_reasons}", failures)
+        profile.max_races_per_month = 5
+        loose = evaluate.plan_season(evals, profile)
+        check({ids["near"], ids["clash"]} <= {e.race["id"] for e in loose.picked}, "with no limits both May races fit", failures)
+        check(ids["far"] in [e.race["id"] for e in plan.not_worth], "money-losing race listed separately", failures)
+        check([e.race["id"] for e in plan.fixed] == [ids["a_race"]], "calendar race is fixed", failures)
+        text = report.render(profile=profile, today=dt.date(2026, 1, 1), until=dt.date(2026, 12, 31), evaluations=evals,
+                             plan=plan, digest=None, stats=None)
+        for heading in ("## 建议赛程（按奖金）", "## 有奖金表的比赛", "## 冠军奖金也不够花费的比赛", "## 这些数字怎么来的"):
+            check(heading in text, f"report has {heading}", failures)
+        check("前 2 名" in text and "示例江门奥运距离（A 赛，计划中）" in text, "report shows break-even rank and the A race", failures)
+
+
+def case_digest(failures: list[str]) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        conn, ids = _planning_db(tmp)
+        first = runlog.start_run(conn, "2026-01-01", "2026-12-31")
+        runlog.finish_run(conn, first, {})
+        conn.execute("UPDATE race SET reg_close = '2026-05-01', status = '报名中' WHERE id = ?", (ids["near"],))
+        new_id = store.insert_race(conn, {"name": "新赛事", "start_date": "2026-09-01", "reg_open": "2026-04-25"})
+        store.write_prize_table(conn, ids["far"], "wildto", {"label": "女子组", "ranks": {1: 900, 2: 500}}, status="extracted")
+        second = runlog.start_run(conn, "2026-01-01", "2026-12-31")
+        runlog.finish_run(conn, second, {})
+        changes = runlog.digest(conn, today=dt.date(2026, 4, 20), deadline_days=21)
+        check([item["race_id"] for item in changes["new_races"]] == [new_id], f"new race seen: {changes['new_races']}", failures)
+        changed = {item["race_id"]: item["fields"] for item in changes["changes"]}
+        check(set(changed.get(ids["near"], {})) == {"状态", "报名截止"}, f"status and deadline changes: {changed}", failures)
+        check([item["labels"] for item in changes["new_prizes"]] == [["女子组"]], "new prize ladder seen", failures)
+        check([item["days_left"] for item in changes["deadlines"]] == [11], f"deadline in 11 days: {changes['deadlines']}", failures)
+        check([item["race_id"] for item in changes["opening"]] == [new_id], "registration opening soon", failures)
+
+
 class FakeResponse:
     def __init__(self, status: int, text: str, content_type: str = "text/html; charset=utf-8") -> None:
         self.status_code = status
@@ -352,6 +487,9 @@ CASES: list[tuple[str, Callable[[list[str]], None]]] = [
     ("matching_and_reviews", case_matching_and_reviews),
     ("seed", case_seed),
     ("fetcher", case_fetcher),
+    ("evaluate", case_evaluate),
+    ("season_and_report", case_season_and_report),
+    ("digest", case_digest),
 ]
 
 

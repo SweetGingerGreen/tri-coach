@@ -12,6 +12,12 @@ Race planner CLI (P0: data collection).
   stats                                                 coverage per source
   where                                                 data directory and database path
 
+  evaluate [--today D]                                  per race: category, fee, travel, prize, break-even rank
+  plan [--today D] [--out FILE]                         Markdown report with a proposed prize-money season
+  digest                                                what changed between the last two crawls
+  run                                                   crawl + digest + plan, report saved under reports/ (for a bot)
+  doctor                                                check Python, packages, data dir, profile and site reachability
+
 Data lives in ~/.local/share/tri-coach/race_planner (override with
 TRI_RACE_PLANNER_DIR or --data-dir). Every fetched page is kept as a snapshot.
 """
@@ -19,13 +25,16 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import importlib
 import json
+import platform
 import sqlite3
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
-from tri_coach.race_planner import categories, ingest, seed, store
+from tri_coach.race_planner import categories, evaluate, ingest, report, runlog, seed, store
 from tri_coach.race_planner.fetch import DEFAULT_MIN_INTERVAL_S, Fetcher, FetchError
 from tri_coach.race_planner.sources import chinatriathlon, wildto, zuicool
 from tri_coach.race_planner.textutil import pad, s_to_hms
@@ -42,7 +51,26 @@ def _paths(args: argparse.Namespace) -> tuple[Path, Path]:
 
 def _connect(args: argparse.Namespace) -> tuple[sqlite3.Connection, Path]:
     data_dir, db_path = _paths(args)
-    return store.connect(db_path), data_dir
+    conn = store.connect(db_path)
+    runlog.ensure(conn)
+    return conn, data_dir
+
+
+def china_today() -> dt.date:
+    """Race dates are Chinese local dates; a cloud machine may run on UTC."""
+    try:
+        from zoneinfo import ZoneInfo
+        return dt.datetime.now(ZoneInfo("Asia/Shanghai")).date()
+    except Exception:  # noqa: BLE001 - no tz database: fixed UTC+8 is exact for China
+        return dt.datetime.now(dt.timezone(dt.timedelta(hours=8))).date()
+
+
+def _today(args: argparse.Namespace) -> dt.date:
+    return dt.date.fromisoformat(args.today) if getattr(args, "today", None) else china_today()
+
+
+def _until(args: argparse.Namespace, today: dt.date) -> dt.date:
+    return dt.date.fromisoformat(args.until) if getattr(args, "until", None) else dt.date(today.year + 1, 12, 31)
 
 
 def _print_json(payload: Any) -> None:
@@ -62,23 +90,39 @@ def cmd_where(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_crawl(args: argparse.Namespace) -> int:
-    conn, data_dir = _connect(args)
-    fetcher = Fetcher(conn, data_dir, min_interval_s=args.interval, max_age_s=0 if args.refresh else None if args.offline else 20 * 3600,
-                      offline=args.offline, log=(lambda message: print(f"    {message}")) if args.verbose else None)
-    names = CRAWL_ORDER if args.source == "all" else (args.source,)
-    summary = {}
+def do_crawl(conn: sqlite3.Connection, data_dir: Path, *, source: str, since: str, until: str, limit: int | None = None,
+             interval: float = DEFAULT_MIN_INTERVAL_S, refresh: bool = False, offline: bool = False,
+             verbose: bool = False, quiet: bool = False) -> dict[str, Any]:
+    fetcher = Fetcher(conn, data_dir, min_interval_s=interval, max_age_s=0 if refresh else None if offline else 20 * 3600,
+                      offline=offline, log=(lambda message: print(f"    {message}")) if verbose else None)
+    names = CRAWL_ORDER if source == "all" else (source,)
+    log = (lambda message: None) if quiet else print
+    run_id = runlog.start_run(conn, since, until)
+    summary: dict[str, Any] = {}
     for name in names:
-        print(f"== {name} ({args.since} → {args.until})")
+        log(f"== {name} ({since} → {until})")
         try:
-            summary[name] = SOURCES[name].crawl(conn, fetcher, since=args.since, until=args.until, limit=args.limit)
+            summary[name] = SOURCES[name].crawl(conn, fetcher, since=since, until=until, limit=limit, log=log)
         except FetchError as exc:
             summary[name] = {"error": str(exc)}
-            print(f"  ! {name} stopped: {exc}")
+            print(f"  ! {name} stopped: {exc}", file=sys.stderr)
         conn.commit()
     summary["network_requests"] = fetcher.network_calls
+    summary["run_id"] = run_id
+    runlog.finish_run(conn, run_id, summary)
+    return summary
+
+
+def _crawl_failed(summary: dict[str, Any]) -> bool:
+    return any(isinstance(v, dict) and "error" in v for v in summary.values())
+
+
+def cmd_crawl(args: argparse.Namespace) -> int:
+    conn, data_dir = _connect(args)
+    summary = do_crawl(conn, data_dir, source=args.source, since=args.since, until=args.until, limit=args.limit,
+                       interval=args.interval, refresh=args.refresh, offline=args.offline, verbose=args.verbose)
     _print_json(summary)
-    return 0 if not any(isinstance(v, dict) and "error" in v for v in summary.values()) else 1
+    return 1 if _crawl_failed(summary) else 0
 
 
 def cmd_seed(args: argparse.Namespace) -> int:
@@ -273,6 +317,160 @@ def cmd_stats(args: argparse.Namespace) -> int:
     return 0
 
 
+def _evaluations(conn: sqlite3.Connection, args: argparse.Namespace) -> tuple[evaluate.Profile, dt.date, dt.date, list[evaluate.Evaluation]]:
+    profile = evaluate.load_profile(conn, args.athlete)
+    today = _today(args)
+    until = _until(args, today)
+    return profile, today, until, evaluate.evaluate_races(conn, profile, today=today, until=until,
+                                                          include_past=getattr(args, "include_past", False))
+
+
+def cmd_evaluate(args: argparse.Namespace) -> int:
+    conn, _ = _connect(args)
+    profile, today, until, evaluations = _evaluations(conn, args)
+    if args.json:
+        _print_json([e.as_dict() for e in evaluations])
+        return 0
+    for e in evaluations:
+        head = f"{e.race['id']:>4}  {e.race['start_date'] or '????-??-??'}  {pad(e.race['name'], 40)}"
+        if e.excluded:
+            print(f"{head}  -- {e.excluded}")
+            continue
+        ladder = f"{e.ladder['label']}[{e.ladder['status']}]" if e.ladder else "no ladder"
+        print(f"{head}  fee {e.fee or '—'}  travel {(e.travel or {}).get('cost') or '—'}  "
+              f"1st net {e.net_first or '—'}  break-even {e.break_even_rank or '—'}  {ladder}  "
+              f"{'; '.join(e.conflicts + e.flags)}")
+    return 0
+
+
+def cmd_plan(args: argparse.Namespace) -> int:
+    conn, _ = _connect(args)
+    profile, today, until, evaluations = _evaluations(conn, args)
+    plan = evaluate.plan_season(evaluations, profile)
+    text = report.render(profile=profile, today=today, until=until, evaluations=evaluations, plan=plan,
+                         digest=None, stats=None)
+    if args.out:
+        Path(args.out).write_text(text, encoding="utf-8")
+        print(args.out)
+    else:
+        print(text)
+    return 0
+
+
+def cmd_digest(args: argparse.Namespace) -> int:
+    conn, _ = _connect(args)
+    _print_json(runlog.digest(conn, today=_today(args), deadline_days=args.days))
+    return 0
+
+
+def cmd_run(args: argparse.Namespace) -> int:
+    """One unattended pass: crawl, then write the report. Meant for a scheduled bot."""
+    conn, data_dir = _connect(args)
+    today = _today(args)
+    until = _until(args, today)
+    since = args.since or f"{today.year}-01-01"
+    summary: dict[str, Any] = {}
+    if not args.no_crawl:
+        summary = do_crawl(conn, data_dir, source="all", since=since, until=until.isoformat(), offline=args.offline,
+                           interval=args.interval, quiet=True)
+    profile = evaluate.load_profile(conn, args.athlete)
+    evaluations = evaluate.evaluate_races(conn, profile, today=today, until=until)
+    plan = evaluate.plan_season(evaluations, profile)
+    changes = runlog.digest(conn, today=today, deadline_days=args.days)
+    stats_line = None
+    if summary:
+        parts = [f"{name} {value.get('in_window', 0)} 场" if "error" not in value else f"{name} 失败"
+                 for name, value in summary.items() if isinstance(value, dict)]
+        stats_line = "，".join(parts) + f"，{summary.get('network_requests', 0)} 个请求"
+    text = report.render(profile=profile, today=today, until=until, evaluations=evaluations, plan=plan,
+                         digest=changes, stats=stats_line)
+    reports = data_dir / "reports"
+    reports.mkdir(parents=True, exist_ok=True)
+    stamp = dt.datetime.now().strftime("%Y-%m-%d_%H%M")
+    path = reports / f"report_{stamp}.md"
+    path.write_text(text, encoding="utf-8")
+    (reports / "latest.md").write_text(text, encoding="utf-8")
+    payload = {
+        "report": str(path), "today": today.isoformat(), "until": until.isoformat(), "crawl": summary,
+        "digest": {key: changes[key] for key in ("new_races", "changes", "new_prizes", "deadlines", "opening")},
+        "picked": [{"race": e.race["name"], "date": e.race["start_date"], "net_first": e.net_first, "cost": e.cost,
+                    "break_even_rank": e.break_even_rank} for e in plan.picked],
+        "unverified_prize_tables": conn.execute("SELECT count(*) FROM prize_table WHERE status = 'extracted'").fetchone()[0],
+    }
+    (reports / "latest.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+    _print_json(payload)
+    failed = summary and all(isinstance(v, dict) and "error" in v for k, v in summary.items() if k in SOURCES)
+    return 1 if failed else 0
+
+
+DOCTOR_PROBES = (
+    ("zuicool", "GET", zuicool.list_url(1), True),
+    ("chinatriathlon", "GET", chinatriathlon.list_url(1), True),
+    ("wildto", "GET", "https://www.wildto.com/event/trievents", True),
+    ("wildto-static", "GET", "https://static.wildto.com/", False),
+    ("ctsa.org.cn (not crawled yet)", "GET", "https://www.ctsa.org.cn/", False),
+    ("ctsa members (not crawled yet)", "GET", "https://triathlon.basts.com.cn/", False),
+)
+
+
+def cmd_doctor(args: argparse.Namespace) -> int:
+    import requests
+
+    data_dir, db_path = _paths(args)
+    checks: list[dict[str, Any]] = []
+
+    def add(name: str, ok: bool, detail: str, required: bool = True) -> None:
+        checks.append({"check": name, "ok": ok, "required": required, "detail": detail})
+
+    add("python>=3.10", sys.version_info >= (3, 10), platform.python_version())
+    for module in ("requests", "bs4"):
+        try:
+            importlib.import_module(module)
+            add(f"import {module}", True, "ok")
+        except ImportError as exc:
+            add(f"import {module}", False, f"{exc}; run pip install -r requirements.txt")
+    try:
+        data_dir.mkdir(parents=True, exist_ok=True)
+        probe = data_dir / ".doctor_write_test"
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink()
+        add("data dir writable", True, str(data_dir))
+    except OSError as exc:
+        add("data dir writable", False, f"{data_dir}: {exc}")
+    try:
+        conn = store.connect(db_path)
+        runlog.ensure(conn)
+        races = conn.execute("SELECT count(*) FROM race").fetchone()[0]
+        add("database", True, f"{db_path}, {races} races")
+        profile = evaluate.load_profile(conn, args.athlete)
+        missing = [name for name, value in (("gender", profile.gender), ("home_city", profile.home_city),
+                                            ("age_group or birth_year", profile.age_range_ref or profile.birth_year))
+                   if not value]
+        add("athlete profile", not missing and bool(profile.raw),
+            "ok" if not missing and profile.raw else f"missing: {', '.join(missing) or 'whole profile'}; run seed", required=False)
+    except sqlite3.Error as exc:
+        add("database", False, str(exc))
+    add("today (Asia/Shanghai)", True, china_today().isoformat(), required=False)
+    if not args.skip_network:
+        session = requests.Session()
+        session.headers["User-Agent"] = "tri-coach-race-planner/0.1 doctor"
+        for name, method, url, required in DOCTOR_PROBES:
+            started = time.monotonic()
+            try:
+                response = session.request(method, url, timeout=args.timeout)
+                ok = response.status_code < 500
+                detail = f"HTTP {response.status_code} in {time.monotonic() - started:.1f}s"
+            except requests.RequestException as exc:
+                ok, detail = False, f"{type(exc).__name__}: {str(exc)[:120]}"
+            add(f"reach {name}", ok, detail, required=required)
+    for item in checks:
+        mark = "ok  " if item["ok"] else ("FAIL" if item["required"] else "warn")
+        print(f"[{mark}] {item['check']}: {item['detail']}")
+    core_ok = all(item["ok"] for item in checks if item["required"] and not item["check"].startswith("reach "))
+    any_source = args.skip_network or any(item["ok"] for item in checks if item["check"].startswith("reach ") and item["required"])
+    return 0 if core_ok and any_source else 1
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     today = dt.date.today()
     parser = argparse.ArgumentParser(prog="python3 -m tri_coach.race_planner", description=__doc__,
@@ -330,6 +528,42 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     stats = sub.add_parser("stats", help="coverage summary")
     stats.add_argument("--year", type=int)
     stats.set_defaults(func=cmd_stats)
+
+    def planning_args(command: argparse.ArgumentParser) -> None:
+        command.add_argument("--athlete", default="self")
+        command.add_argument("--today", help="pretend today is this date (YYYY-MM-DD), e.g. for a backtest")
+        command.add_argument("--until", help="last race date to consider (default: end of next year)")
+
+    evaluate_cmd = sub.add_parser("evaluate", help="per-race money view for the athlete")
+    planning_args(evaluate_cmd)
+    evaluate_cmd.add_argument("--include-past", action="store_true")
+    evaluate_cmd.add_argument("--json", action="store_true")
+    evaluate_cmd.set_defaults(func=cmd_evaluate)
+
+    plan = sub.add_parser("plan", help="Markdown report with a proposed season")
+    planning_args(plan)
+    plan.add_argument("--out", help="write the report to this file")
+    plan.set_defaults(func=cmd_plan)
+
+    digest = sub.add_parser("digest", help="changes between the last two crawls")
+    digest.add_argument("--today")
+    digest.add_argument("--days", type=int, default=21, help="registration deadlines within this many days")
+    digest.set_defaults(func=cmd_digest)
+
+    run = sub.add_parser("run", help="crawl + digest + plan; saves reports/latest.md (for a scheduled bot)")
+    planning_args(run)
+    run.add_argument("--since", help="first race date to crawl (default: 1 Jan this year)")
+    run.add_argument("--days", type=int, default=21)
+    run.add_argument("--interval", type=float, default=DEFAULT_MIN_INTERVAL_S)
+    run.add_argument("--offline", action="store_true", help="use stored snapshots only")
+    run.add_argument("--no-crawl", action="store_true", help="only rebuild the report from the database")
+    run.set_defaults(func=cmd_run)
+
+    doctor = sub.add_parser("doctor", help="check this machine can run the planner")
+    doctor.add_argument("--athlete", default="self")
+    doctor.add_argument("--skip-network", action="store_true")
+    doctor.add_argument("--timeout", type=float, default=10.0)
+    doctor.set_defaults(func=cmd_doctor)
     return parser.parse_args(argv)
 
 

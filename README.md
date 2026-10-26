@@ -54,7 +54,9 @@ tri_coach/                      engine package
   race_planner/                 race calendar and prize-money data (python3 -m tri_coach.race_planner):
                                 crawls zuicool / chinatriathlon / wildto, extracts prize tables
                                 from competition rules, stores the athlete's own races; data lives
-                                in ~/.local/share/tri-coach/race_planner, not in the repo
+                                in ~/.local/share/tri-coach/race_planner, not in the repo;
+                                evaluate / plan / run give a prize-money season report
+deploy/grok-bot/                scripts and instructions to run the race planner weekly on a Grok Bot
 evals/eval_*.py                 local evals for the RAG layer, bike plan modules, the
                                 orchestrator, the Strava log and the race planner
 scripts/                        one-off ingest / migration helpers
@@ -201,7 +203,8 @@ property of their respective owners.
 - `tri_coach/strava/`：训练后写 Strava 日志（`python3 -m tri_coach.strava`）：OAuth 授权和描述写入、数据卡片 PNG、按拍摄时间挑照片并去掉 EXIF/GPS。Strava 公开 API 不能传照片和私人笔记，这两样走网页编辑页。
 - `tri_coach/orchestrator.py`：三项总课表协调器，保留骑行计划主体，并协调跑步、游泳、brick 和强度预算。
 - `tri_coach/ironman_logic_check.py`：用一份历史 Ironman 226 教练计划提取出的设计逻辑做一致性校验（逻辑校验，不是黄金标准）。
-- `tri_coach/race_planner/`：赛事与奖金数据（`python3 -m tri_coach.race_planner`）：抓最酷 / chinatriathlon / 野途的赛历、组别和报名费，从竞赛规程里抽奖金表（抽出后要人工 `verify`），并录入选手自己的比赛和成绩。数据库、网页快照和个人 seed 都在 `~/.local/share/tri-coach/race_planner/`，不进仓库；格式示例见 `examples/race_planner/seed_example.json`。
+- `tri_coach/race_planner/`：赛事与奖金数据（`python3 -m tri_coach.race_planner`）：抓最酷 / chinatriathlon / 野途的赛历、组别和报名费，从竞赛规程里抽奖金表（抽出后要人工 `verify`），并录入选手自己的比赛和成绩。数据库、网页快照和个人 seed 都在 `~/.local/share/tri-coach/race_planner/`，不进仓库；格式示例见 `examples/race_planner/seed_example.json`。`evaluate` / `plan` / `run` 按报名费、差旅估算和奖金表算出每场的保本名次，给出一份按奖金排的赛程建议；还没有对手成绩，所以不给夺奖概率。
+- `deploy/grok-bot/`：在 Grok Bot 的云电脑上每周跑一次赛事规划的脚本和说明（`bootstrap.sh`、`run_weekly.sh`、skill 和 routine 的文字）。
 - `evals/eval_*.py`：针对 RAG、骑行计划、三项协调器的本地评估脚本。
 - `scripts/`：一次性的入库 / 迁移辅助脚本。
 
