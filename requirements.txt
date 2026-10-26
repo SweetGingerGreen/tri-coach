@@ -2,6 +2,8 @@
 # Requires Python >= 3.10 (the codebase uses PEP 604 union syntax).
 numpy>=1.26
 openpyxl>=3.1
+requests>=2.31          # Strava API and race planner crawlers
+beautifulsoup4>=4.12    # race planner HTML parsing (stdlib html.parser backend)
 
 # Optional: PDF ingestion via opendataloader-pdf (used by ingest_knowledge.py).
 # Comment out if you don't ingest PDFs through that script.
