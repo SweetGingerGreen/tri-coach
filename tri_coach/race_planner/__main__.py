@@ -403,13 +403,16 @@ def cmd_run(args: argparse.Namespace) -> int:
     return 1 if failed else 0
 
 
+# Each probe sends the request the crawler itself sends. wildto's list *page* redirects
+# HTTPS to plain HTTP, which some cloud networks block, so it is not a fair test; the
+# crawler only uses the HTTPS list query and the HTTPS static rules server.
 DOCTOR_PROBES = (
-    ("zuicool", "GET", zuicool.list_url(1), True),
-    ("chinatriathlon", "GET", chinatriathlon.list_url(1), True),
-    ("wildto", "GET", "https://www.wildto.com/event/trievents", True),
-    ("wildto-static", "GET", "https://static.wildto.com/", False),
-    ("ctsa.org.cn (not crawled yet)", "GET", "https://www.ctsa.org.cn/", False),
-    ("ctsa members (not crawled yet)", "GET", "https://triathlon.basts.com.cn/", False),
+    ("zuicool", "GET", zuicool.list_url(1), None, True),
+    ("chinatriathlon", "GET", chinatriathlon.list_url(1), None, True),
+    ("wildto", "POST", wildto.SCREEN_URL, "screen", True),
+    ("wildto-static", "GET", "https://static.wildto.com/", None, True),
+    ("ctsa.org.cn (not crawled yet)", "GET", "https://www.ctsa.org.cn/", None, False),
+    ("ctsa members (not crawled yet)", "GET", "https://triathlon.basts.com.cn/", None, False),
 )
 
 
@@ -454,10 +457,15 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     if not args.skip_network:
         session = requests.Session()
         session.headers["User-Agent"] = "tri-coach-race-planner/0.1 doctor"
-        for name, method, url, required in DOCTOR_PROBES:
+        today = china_today().isoformat()
+        for name, method, url, body, required in DOCTOR_PROBES:
             started = time.monotonic()
             try:
-                response = session.request(method, url, timeout=args.timeout)
+                if body == "screen":
+                    response = session.post(url, data=wildto.screen_form(1, today, today), headers=wildto.HEADERS,
+                                            timeout=args.timeout, allow_redirects=False)
+                else:
+                    response = session.request(method, url, timeout=args.timeout, allow_redirects=False)
                 ok = response.status_code < 500
                 detail = f"HTTP {response.status_code} in {time.monotonic() - started:.1f}s"
             except requests.RequestException as exc:
